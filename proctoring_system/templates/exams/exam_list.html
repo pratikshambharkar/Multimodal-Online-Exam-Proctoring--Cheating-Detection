@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Available Exams — RAIM{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Available Exams</h1>
+  <p class="muted">All exams below run under multimodal proctoring: camera, microphone and browser activity are monitored for the whole attempt.</p>
+</div>
+
+{% if rows %}
+<div class="exam-grid">
+  {% for row in rows %}
+  <div class="card exam-card">
+    <div class="card-body">
+      <h2 class="exam-title">{{ row.exam.title }}</h2>
+      {% if row.exam.description %}
+      <p class="exam-desc">{{ row.exam.description }}</p>
+      {% endif %}
+      <ul class="exam-meta">
+        <li><strong>{{ row.exam.duration_minutes }}</strong> minutes</li>
+        <li><strong>{{ row.question_count }}</strong> question{{ row.question_count|pluralize }}</li>
+        <li><strong>{{ row.exam.total_marks }}</strong> mark{{ row.exam.total_marks|pluralize }}</li>
+      </ul>
+    </div>
+    <div class="card-actions">
+      {% if row.session and row.session.status == 'in_progress' %}
+        <a class="btn btn-warning" href="{% url 'exam_take' row.session.id %}">Resume exam</a>
+      {% elif row.session %}
+        <a class="btn btn-secondary" href="{% url 'exam_result' row.session.id %}">View result</a>
+      {% else %}
+        <form method="post" action="{% url 'exam_start' row.exam.id %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-primary">Start exam</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card empty-state">
+  <p>No active exams are available right now. Please check back later.</p>
+</div>
+{% endif %}
+{% endblock %}

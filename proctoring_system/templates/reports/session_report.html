@@ -1,0 +1,318 @@
+{% extends 'base.html' %}
+
+{% block title %}Report — {{ student.get_full_name|default:student.username }} — {{ exam.title }} — RAIM{% endblock %}
+
+{% block content %}
+<div class="report session-report-page">
+
+  <div class="report-header">
+    <div class="report-header-info">
+      <h1>Exam Integrity Report</h1>
+      <p class="report-meta">
+        <strong>{{ student.get_full_name|default:student.username }}</strong>
+        <span class="muted">({{ student.username }})</span>
+        — {{ exam.title }}
+      </p>
+      <p class="report-meta muted">
+        Started {{ session.started_at|date:"d M Y, H:i:s" }}
+        · Duration {{ duration }}
+        {% if session.submitted_at %}· Submitted {{ session.submitted_at|date:"d M Y, H:i:s" }}{% endif %}
+      </p>
+      <p class="report-badges">
+        <span class="badge status-{{ session.status }}">{{ session.get_status_display }}</span>
+        <span class="badge trust-{{ session.trust_level }}">{{ session.get_trust_level_display }}</span>
+      </p>
+      {% if session.termination_reason %}
+      <p class="termination-reason">Termination reason: {{ session.termination_reason }}</p>
+      {% endif %}
+    </div>
+    <div class="report-actions">
+      <a class="btn btn-primary" href="{% url 'session_report_pdf' session.id %}">Download PDF</a>
+    </div>
+  </div>
+
+  <div class="stat-grid report-stats">
+    <div class="stat-card">
+      <span class="stat-value">{{ session.score|floatformat:"-1" }} / {{ session.total_marks|floatformat:"-1" }}</span>
+      <span class="stat-label">Score ({{ session.percentage }}%)</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{{ session.risk_score|floatformat:2 }} / {{ session.peak_risk|floatformat:2 }}</span>
+      <span class="stat-label">Risk (final / peak)</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{{ session.violation_count }}</span>
+      <span class="stat-label">Violations</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{{ session.suspicious_count }}</span>
+      <span class="stat-label">Suspicious flags</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{{ session.tab_switches }}</span>
+      <span class="stat-label">Tab switches</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{{ identity_passed }} / {{ identity_failed }}</span>
+      <span class="stat-label">Identity checks (passed / failed)</span>
+    </div>
+  </div>
+
+  <div class="card report-section verdict-card">
+    <h2>Verdict</h2>
+    <p>{{ verdict }}</p>
+  </div>
+
+  <div class="card report-section">
+    <h2>Risk timeline</h2>
+    <canvas id="risk-chart" width="960" height="300"
+            style="max-width:100%;height:auto;">
+      Risk timeline chart ({{ frames|length }} analyzed frame{{ frames|length|pluralize }}).
+    </canvas>
+  </div>
+
+  <div class="card report-section">
+    <h2>Channel breakdown</h2>
+    {% if channel_stats %}
+    <div class="table-wrap">
+      <table class="table channel-table">
+        <thead>
+          <tr>
+            <th>Channel</th>
+            <th>Info</th>
+            <th>Suspicious</th>
+            <th>Violations</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for channel, row in channel_stats.items %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.info }}</td>
+            <td>{{ row.suspicious }}</td>
+            <td>{{ row.violation }}</td>
+            <td>{{ row.total }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="muted">No monitoring events were recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="card report-section">
+    <h2>Event timeline</h2>
+    {% if events %}
+    <div class="table-wrap">
+      <table class="table events-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Channel</th>
+            <th>Type</th>
+            <th>Severity</th>
+            <th>Message</th>
+            <th>Evidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in events %}
+          <tr class="event-row event-{{ e.severity }}">
+            <td>{{ e.created_at|time:"H:i:s" }}</td>
+            <td><span class="badge badge-channel">{{ e.get_channel_display }}</span></td>
+            <td>{{ e.event_type }}</td>
+            <td><span class="badge badge-{{ e.severity }}">{{ e.get_severity_display }}</span></td>
+            <td>{{ e.message }}</td>
+            <td>
+              {% if e.snapshot %}
+              <a href="{{ e.snapshot.url }}" target="_blank" rel="noopener">
+                <img src="{{ e.snapshot.url }}" alt="Evidence snapshot for {{ e.event_type }}"
+                     class="evidence-thumb" width="72">
+              </a>
+              {% else %}
+              <span class="muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="muted">No monitoring events were recorded during this session.</p>
+    {% endif %}
+  </div>
+
+  <div class="card report-section audio-card">
+    <h2>Audio analysis</h2>
+    {% if audio_summary.total %}
+    <p>
+      {{ audio_summary.total }} audio chunk{{ audio_summary.total|pluralize }} analyzed
+      · max speech probability {{ audio_summary.max_speech_prob|floatformat:2 }}
+    </p>
+    <div class="table-wrap">
+      <table class="table audio-table">
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Chunks</th>
+            <th>Share</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in audio_summary.labels %}
+          <tr>
+            <td>{{ row.label|capfirst }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.pct }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="muted">No audio chunks were recorded for this session.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ risk_series|json_script:"risk-series" }}
+{{ risk_threshold|json_script:"risk-threshold" }}
+<script>
+(function () {
+  'use strict';
+  var canvas = document.getElementById('risk-chart');
+  var dataEl = document.getElementById('risk-series');
+  if (!canvas || !dataEl || !canvas.getContext) { return; }
+
+  var series = JSON.parse(dataEl.textContent) || [];
+  var thrEl = document.getElementById('risk-threshold');
+  var threshold = thrEl ? JSON.parse(thrEl.textContent) : 0.7;
+
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width;
+  var H = canvas.height;
+  var pad = { left: 54, right: 20, top: 22, bottom: 36 };
+  var plotW = W - pad.left - pad.right;
+  var plotH = H - pad.top - pad.bottom;
+
+  var axisColor = '#64748b';
+  var gridColor = 'rgba(100, 116, 139, 0.25)';
+  var tealLine = '#14b8a6';
+  var tealFill = 'rgba(20, 184, 166, 0.16)';
+  var redLine = '#e05252';
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = '12px sans-serif';
+
+  if (!series.length) {
+    ctx.fillStyle = axisColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('No frame data recorded for this session.', W / 2, H / 2);
+    return;
+  }
+
+  var maxT = Math.max(series[series.length - 1].t, 1);
+
+  function x(t) { return pad.left + (t / maxT) * plotW; }
+  function y(r) { return pad.top + (1 - Math.min(Math.max(r, 0), 1)) * plotH; }
+  function mmss(t) {
+    var m = Math.floor(t / 60);
+    var s = Math.round(t % 60);
+    if (s === 60) { m += 1; s = 0; }
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  // Horizontal gridlines (0.25 / 0.5 / 0.75) and axis bounds with labels.
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  [0, 0.25, 0.5, 0.75, 1].forEach(function (v) {
+    var yy = y(v);
+    ctx.strokeStyle = (v === 0 || v === 1) ? axisColor : gridColor;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, yy);
+    ctx.lineTo(pad.left + plotW, yy);
+    ctx.stroke();
+    ctx.fillStyle = axisColor;
+    ctx.fillText(v.toFixed(2), pad.left - 8, yy);
+  });
+
+  // X-axis ticks with elapsed m:ss labels.
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  var ticks = 6;
+  for (var i = 0; i <= ticks; i++) {
+    var t = (maxT / ticks) * i;
+    var xx = x(t);
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(xx, pad.top + plotH);
+    ctx.lineTo(xx, pad.top + plotH + 5);
+    ctx.stroke();
+    ctx.fillStyle = axisColor;
+    ctx.fillText(mmss(t), xx, pad.top + plotH + 9);
+  }
+
+  // Y axis line.
+  ctx.strokeStyle = axisColor;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, pad.top + plotH);
+  ctx.stroke();
+
+  // Violation-threshold line (dashed red) with label.
+  var ty = y(threshold);
+  ctx.save();
+  ctx.strokeStyle = redLine;
+  ctx.setLineDash([6, 5]);
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, ty);
+  ctx.lineTo(pad.left + plotW, ty);
+  ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle = redLine;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('violation threshold (' + Number(threshold).toFixed(2) + ')',
+               pad.left + 6, ty - 3);
+
+  // Filled area under the risk polyline.
+  ctx.beginPath();
+  ctx.moveTo(x(series[0].t), y(0));
+  series.forEach(function (p) { ctx.lineTo(x(p.t), y(p.r)); });
+  ctx.lineTo(x(series[series.length - 1].t), y(0));
+  ctx.closePath();
+  ctx.fillStyle = tealFill;
+  ctx.fill();
+
+  // Risk polyline.
+  ctx.beginPath();
+  series.forEach(function (p, i) {
+    if (i === 0) { ctx.moveTo(x(p.t), y(p.r)); }
+    else { ctx.lineTo(x(p.t), y(p.r)); }
+  });
+  ctx.strokeStyle = tealLine;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // A lone data point would otherwise be invisible.
+  if (series.length === 1) {
+    ctx.fillStyle = tealLine;
+    ctx.beginPath();
+    ctx.arc(x(series[0].t), y(series[0].r), 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+})();
+</script>
+{% endblock %}

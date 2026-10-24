@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Gaze Calibration — {{ exam.title }} — RAIM{% endblock %}
+
+{% block content %}
+<div class="calib-intro card" id="calib-intro">
+  <h1>Gaze Calibration</h1>
+  <p class="muted">
+    Before <strong>{{ exam.title }}</strong> begins, RAIM needs a quick,
+    one-time look-around to learn the boundaries of your screen. This makes
+    the "looking away" detector more accurate for your specific camera and
+    seating position, and reduces false alerts for normal head movement.
+  </p>
+  <ul class="overlay-list">
+    <li>A dot will appear at about nine spots around your screen — corners, edges and center.</li>
+    <li>Simply look directly at the dot while it is shown; no clicking needed.</li>
+    <li>The whole step takes under 30 seconds.</li>
+  </ul>
+  <button type="button" id="calib-start-btn" class="btn btn-primary btn-lg">Begin calibration</button>
+  <p id="calib-start-hint" class="overlay-note calib-start-hint" hidden></p>
+  <p class="overlay-note">
+    This uses the same webcam permission as the exam itself. If calibration
+    cannot complete, the exam still proceeds with default sensitivity.
+  </p>
+  <p class="overlay-note">
+    <a href="#" id="calib-skip-intro">Skip calibration and go to the exam</a>
+  </p>
+</div>
+
+<div id="calib-stage" class="calib-stage" hidden>
+  <div class="calib-progress-wrap">
+    <div class="calib-progress-bar"><div id="calib-progress-fill" class="calib-progress-fill"></div></div>
+    <span id="calib-progress-text" class="calib-progress-text">Point 1 of 9</span>
+  </div>
+  <p id="calib-instruction" class="calib-instruction">Look at the dot</p>
+  <div id="calib-dot" class="calib-dot"></div>
+  <video id="calib-video" class="calib-video mirrored" autoplay muted playsinline></video>
+  <a href="#" id="calib-skip" class="calib-skip">Skip calibration (use default sensitivity)</a>
+</div>
+
+<div id="calib-error" class="card proctor-error" hidden>
+  <h3>Camera unavailable</h3>
+  <p id="calib-error-message">Camera and microphone access are needed to calibrate gaze tracking.</p>
+  <button type="button" id="calib-error-skip" class="btn btn-danger">Continue without calibration</button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/calibration.js' %}?v={{ ASSET_VERSION }}"></script>
+<script>
+  Calibration.init({
+    sessionId: {{ session.id }},
+    sampleUrl: '{% url "api_calibration_sample" %}',
+    finishUrl: '{% url "api_calibration_finish" %}',
+    nextUrl: '{% url "exam_take" session.id %}'
+  });
+</script>
+{% endblock %}

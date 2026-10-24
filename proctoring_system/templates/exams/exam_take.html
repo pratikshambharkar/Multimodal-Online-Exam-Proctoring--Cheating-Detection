@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ exam.title }} — Exam Room — RAIM{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Page-scoped layout safety net for the exam room grid. */
+  .exam-room { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 1.5rem; align-items: start; }
+  .proctor-sidebar { position: sticky; top: 1rem; }
+  .mirrored { transform: scaleX(-1); }
+  #proctor-video { width: 100%; max-width: 280px; border-radius: 8px; display: block; background: #0b1626; }
+  @media (max-width: 900px) { .exam-room { grid-template-columns: 1fr; } .proctor-sidebar { position: static; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="exam-room">
+  <div class="exam-main">
+    <div class="exam-room-head">
+      <h1>{{ exam.title }}</h1>
+      <p class="muted">Answer all questions. Do not switch tabs, leave fullscreen or talk during the exam — every violation is recorded.</p>
+    </div>
+
+    <form id="exam-form" method="post" action="{% url 'exam_submit' session.id %}">
+      {% csrf_token %}
+      {% for item in question_data %}
+      <div class="card question-card">
+        <div class="question-head">
+          <span class="question-number">Question {{ forloop.counter }}</span>
+          <span class="question-marks">{{ item.question.marks }} mark{{ item.question.marks|pluralize }}</span>
+        </div>
+        <p class="question-text">{{ item.question.text }}</p>
+        <div class="choice-list">
+          {% for choice in item.choices %}
+          <label class="choice-option">
+            <input type="radio"
+                   name="question_{{ item.question.id }}"
+                   value="{{ choice.id }}"
+                   {% if item.selected_id == choice.id %}checked{% endif %}>
+            <span>{{ choice.text }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+
+      <div class="exam-submit-row">
+        <button type="submit" class="btn btn-primary btn-lg">Submit exam</button>
+      </div>
+    </form>
+  </div>
+
+  <aside class="proctor-sidebar">
+    <div class="card proctor-card">
+      <div class="timer-box">
+        <span class="timer-label">Time remaining</span>
+        <div id="exam-timer" class="exam-timer" data-ends-at="{{ ends_at_ms }}">--:--</div>
+      </div>
+      <video id="proctor-video" class="mirrored" autoplay muted playsinline></video>
+      <div id="proctor-panel"></div>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/proctor.js' %}?v={{ ASSET_VERSION }}"></script>
+<script>
+  Proctor.init({
+    sessionId: {{ session.id }},
+    frameUrl: '{% url "api_frame" %}',
+    audioUrl: '{% url "api_audio" %}',
+    eventUrl: '{% url "api_event" %}',
+    statusUrl: '{% url "api_status" session.id %}',
+    frameIntervalMs: {{ frame_interval_ms }},
+    audioChunkMs: {{ audio_chunk_ms }},
+    submitFormId: 'exam-form'
+  });
+
+  (function () {
+    'use strict';
+    var timerEl = document.getElementById('exam-timer');
+    var form = document.getElementById('exam-form');
+    var endsAt = parseInt(timerEl.dataset.endsAt, 10);
+    var fired = false;
+
+    function pad(n) {
+      return (n < 10 ? '0' : '') + n;
+    }
+
+    function tick() {
+      var remaining = Math.max(0, Math.floor((endsAt - Date.now()) / 1000));
+      var mins = Math.floor(remaining / 60);
+      var secs = remaining % 60;
+      timerEl.textContent = pad(mins) + ':' + pad(secs);
+      if (remaining <= 60) {
+        timerEl.classList.add('timer-warning');
+      }
+      if (remaining <= 0 && !fired) {
+        fired = true;
+        clearInterval(timerId);
+        if (typeof form.requestSubmit === 'function') {
+          form.requestSubmit();
+        } else {
+          form.submit();
+        }
+      }
+    }
+
+    var timerId = setInterval(tick, 500);
+    tick();
+  })();
+</script>
+{% endblock %}

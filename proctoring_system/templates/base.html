@@ -1,0 +1,78 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="RAIM — Remote Assessment Integrity Monitoring. Multimodal online exam proctoring and cheating detection.">
+  <title>{% block title %}RAIM — Online Exam Proctoring{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}?v={{ ASSET_VERSION }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<header class="navbar">
+  <div class="container nav-inner">
+    <a class="brand" href="{% url 'home' %}">
+      <span class="brand-mark">RAIM</span>
+      <span class="brand-tag">Remote Assessment Integrity Monitoring</span>
+    </a>
+
+    <nav class="nav-links" aria-label="Main navigation">
+      <a href="{% url 'home' %}">Home</a>
+      {% if user.is_authenticated %}
+        <a href="{% url 'exam_list' %}">Exams</a>
+        <a href="{% url 'report_list' %}">Reports</a>
+        <a href="{% url 'dashboard' %}">Dashboard</a>
+      {% endif %}
+    </nav>
+
+    <div class="nav-user">
+      {% if user.is_authenticated %}
+        <span class="nav-user-name">{{ user.get_full_name|default:user.username }}</span>
+        <form method="post" action="{% url 'logout' %}" class="logout-form">
+          {% csrf_token %}
+          <button type="submit" class="link-btn">Log out</button>
+        </form>
+      {% else %}
+        <a href="{% url 'login' %}" class="btn btn-ghost btn-sm">Login</a>
+        <a href="{% url 'register' %}" class="btn btn-primary btn-sm">Register</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<main class="container page">
+  {% if messages %}
+    <div class="messages">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.level_tag|default:'info' }}" role="alert">
+          <span class="alert-text">{{ message }}</span>
+          <button type="button" class="alert-close" aria-label="Dismiss">&times;</button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <p>RAIM — Remote Assessment Integrity Monitoring &middot; Multimodal Cheating Detection using DeepFace, CNN &amp; SVM</p>
+  </div>
+</footer>
+
+<script>
+  // Dismissible alerts (event delegation so it also works for alerts added later).
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.alert-close') : null;
+    if (btn) {
+      var alertBox = btn.closest('.alert');
+      if (alertBox) { alertBox.remove(); }
+    }
+  });
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — RAIM{% endblock %}
+
+{% block extra_head %}
+<style>
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin: 1rem 0 1.5rem; }
+  .stat-card { padding: 1rem; border: 1px solid rgba(20, 184, 166, .35); border-radius: 10px; }
+  .stat-card .stat-value { font-size: 2rem; font-weight: 700; color: #2dd4bf; display: block; }
+  .exam-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin: 1rem 0 1.5rem; }
+  .exam-card { padding: 1rem; border: 1px solid #2a3b52; border-radius: 10px; display: flex; flex-direction: column; gap: .5rem; }
+  .exam-card h3 { margin: 0; }
+  .exam-meta { font-size: .85rem; opacity: .8; margin: 0; }
+  .table-wrap { overflow-x: auto; }
+  .table-wrap table { width: 100%; border-collapse: collapse; }
+  .table-wrap th, .table-wrap td { padding: .5rem .6rem; text-align: left; border-bottom: 1px solid #2a3b52; white-space: nowrap; }
+  .badge { display: inline-block; padding: .15rem .55rem; border-radius: 999px; font-size: .75rem; font-weight: 600; border: 1px solid transparent; }
+  .badge-in_progress { color: #38bdf8; border-color: #38bdf8; }
+  .badge-submitted { color: #34d399; border-color: #34d399; }
+  .badge-terminated { color: #f87171; border-color: #f87171; }
+  .badge-high { color: #34d399; border-color: #34d399; }
+  .badge-medium { color: #fbbf24; border-color: #fbbf24; }
+  .badge-low { color: #f87171; border-color: #f87171; }
+  .alert-warning { padding: .8rem 1rem; border: 1px solid #fbbf24; border-radius: 8px; color: #fbbf24; margin: 1rem 0; }
+  .quick-links { display: flex; gap: .6rem; flex-wrap: wrap; margin: 1rem 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if profile.is_instructor %}
+  <h1>Instructor dashboard</h1>
+  <p>Monitoring overview for all proctored sessions.</p>
+
+  <div class="quick-links">
+    <a class="btn btn-primary" href="{% url 'report_list' %}">Integrity reports</a>
+    <a class="btn" href="{% url 'exam_list' %}">Exam catalogue</a>
+    <a class="btn" href="{% url 'admin:index' %}">Admin (manage exams &amp; questions)</a>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <span class="stat-value">{{ total_sessions }}</span>
+      Total exam sessions
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{{ flagged_sessions }}</span>
+      Flagged for review (medium/low trust)
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{{ exams.count }}</span>
+      Exams configured
+    </div>
+  </div>
+
+  <h2>Exams</h2>
+  {% if exams %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Duration</th>
+            <th>Questions</th>
+            <th>Sessions</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for exam in exams %}
+            <tr>
+              <td>{{ exam.title }}</td>
+              <td>{{ exam.duration_minutes }} min</td>
+              <td>{{ exam.questions.count }}</td>
+              <td>{{ exam.sessions.count }}</td>
+              <td>
+                {% if exam.is_active %}
+                  <span class="badge badge-high">Active</span>
+                {% else %}
+                  <span class="badge badge-low">Inactive</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No exams yet — create one in the <a href="{% url 'admin:index' %}">admin</a>.</p>
+  {% endif %}
+
+  <h2>Recent sessions</h2>
+  {% if recent_sessions %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Exam</th>
+            <th>Started</th>
+            <th>Status</th>
+            <th>Score</th>
+            <th>Risk</th>
+            <th>Trust</th>
+            <th>Report</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in recent_sessions %}
+            <tr>
+              <td>{{ s.student.username }}</td>
+              <td>{{ s.exam.title }}</td>
+              <td>{{ s.started_at|date:"d M Y, H:i" }}</td>
+              <td><span class="badge badge-{{ s.status }}">{{ s.get_status_display }}</span></td>
+              <td>{{ s.score|floatformat:1 }} / {{ s.total_marks|floatformat:1 }}</td>
+              <td>{{ s.risk_score|floatformat:2 }}</td>
+              <td><span class="badge badge-{{ s.trust_level }}">{{ s.get_trust_level_display }}</span></td>
+              <td><a href="{% url 'session_report' s.id %}">View report</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No exam sessions recorded yet.</p>
+  {% endif %}
+
+{% else %}
+  <h1>Student dashboard</h1>
+  <p>Hello, {{ request.user.first_name|default:request.user.username }}. Pick an active exam below to begin a proctored attempt.</p>
+
+  {% if not face_registered %}
+    <div class="alert-warning">
+      <strong>Face not enrolled.</strong> Identity verification cannot run without an
+      enrolled face, so proctored exams may reject your attempt. Please
+      <a href="{% url 'register' %}">re-register</a> and complete the webcam face capture.
+    </div>
+  {% endif %}
+
+  <h2>Available exams</h2>
+  {% if exams %}
+    <div class="exam-grid">
+      {% for exam in exams %}
+        <div class="exam-card">
+          <h3>{{ exam.title }}</h3>
+          {% if exam.description %}<p class="exam-meta">{{ exam.description|truncatechars:120 }}</p>{% endif %}
+          <p class="exam-meta">
+            Duration: {{ exam.duration_minutes }} minutes ·
+            Questions: {{ exam.questions.count }}
+          </p>
+          <form method="post" action="{% url 'exam_start' exam.id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">Start exam</button>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>No active exams right now. Check back later.</p>
+  {% endif %}
+
+  <h2>My recent sessions</h2>
+  {% if my_sessions %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Exam</th>
+            <th>Started</th>
+            <th>Status</th>
+            <th>Score</th>
+            <th>Risk</th>
+            <th>Trust</th>
+            <th>Links</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in my_sessions %}
+            <tr>
+              <td>{{ s.exam.title }}</td>
+              <td>{{ s.started_at|date:"d M Y, H:i" }}</td>
+              <td><span class="badge badge-{{ s.status }}">{{ s.get_status_display }}</span></td>
+              <td>{{ s.score|floatformat:1 }} / {{ s.total_marks|floatformat:1 }} ({{ s.percentage }}%)</td>
+              <td>{{ s.risk_score|floatformat:2 }}</td>
+              <td><span class="badge badge-{{ s.trust_level }}">{{ s.get_trust_level_display }}</span></td>
+              <td>
+                <a href="{% url 'exam_result' s.id %}">Result</a> ·
+                <a href="{% url 'session_report' s.id %}">Report</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>You have not attempted any exams yet.</p>
+  {% endif %}
+{% endif %}
+{% endblock %}

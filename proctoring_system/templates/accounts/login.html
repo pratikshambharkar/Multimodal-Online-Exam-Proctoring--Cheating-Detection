@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Sign in — RAIM{% endblock %}
+
+{% block extra_head %}
+<style>
+  .auth-card { max-width: 560px; margin: 0 auto; }
+  .form-field { display: flex; flex-direction: column; gap: .3rem; margin-bottom: 1rem; }
+  .form-field input { padding: .55rem .7rem; border-radius: 8px; border: 1px solid #2a3b52; background: transparent; color: inherit; font: inherit; }
+  .field-error { color: #f87171; font-size: .85rem; margin: 0; }
+  .webcam-widget { margin: 1.25rem 0; padding: 1rem; border: 1px solid rgba(20, 184, 166, .4); border-radius: 10px; }
+  .webcam-stage video, .webcam-stage img { width: 100%; max-width: 480px; border-radius: 8px; background: #0b1626; display: block; }
+  .webcam-controls { margin-top: .6rem; display: flex; gap: .5rem; flex-wrap: wrap; }
+  .webcam-status { color: #2dd4bf; margin: .5rem 0 0; }
+  .webcam-error { color: #f87171; margin: .5rem 0 0; }
+  .webcam-note { font-size: .85rem; opacity: .8; }
+  .webcam-widget [hidden], .webcam-stage [hidden] { display: none !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="auth-card card">
+  <h1>Sign in to RAIM</h1>
+  <p>
+    <strong>Webcam required for students:</strong> accounts with an enrolled face
+    must pass live face verification to sign in.
+  </p>
+
+  {% if form.non_field_errors %}
+    {% for err in form.non_field_errors %}
+      <p class="field-error">{{ err }}</p>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" action="{% url 'login' %}" enctype="multipart/form-data" id="login-form" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next|default:'' }}">
+
+    <div class="form-field">
+      <label for="{{ form.identifier.id_for_label }}">Username or email</label>
+      {{ form.identifier }}
+      {% for err in form.identifier.errors %}<p class="field-error">{{ err }}</p>{% endfor %}
+    </div>
+
+    <div class="form-field">
+      <label for="{{ form.password.id_for_label }}">Password</label>
+      {{ form.password }}
+      {% for err in form.password.errors %}<p class="field-error">{{ err }}</p>{% endfor %}
+    </div>
+
+    <div class="webcam-widget">
+      <h2>Face verification</h2>
+      <p>
+        Look straight at the camera and click <em>Capture photo</em>. Your live
+        capture is compared with the face enrolled at registration.
+      </p>
+      <p class="webcam-note">
+        Instructors whose accounts have no enrolled face may leave this empty and
+        sign in with password only.
+      </p>
+      <div class="webcam-stage">
+        <video id="cam-video" autoplay muted playsinline width="480" height="360"></video>
+        <img id="cam-thumb" alt="Captured face preview" width="480" height="360" hidden>
+      </div>
+      <canvas id="cam-canvas" width="480" height="360" hidden></canvas>
+      <input type="hidden" name="face_data" id="face-data" value="{{ face_data|default:'' }}">
+      <div class="webcam-controls">
+        <button type="button" id="capture-btn" class="btn">Capture photo</button>
+        <button type="button" id="retake-btn" class="btn" hidden>Retake</button>
+      </div>
+      <p id="cam-status" class="webcam-status"></p>
+      <p id="cam-error" class="webcam-error" hidden></p>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Sign in</button>
+  </form>
+
+  <p>New to RAIM? <a href="{% url 'register' %}">Create an account</a>.</p>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  "use strict";
+  var video = document.getElementById("cam-video");
+  var canvas = document.getElementById("cam-canvas");
+  var thumb = document.getElementById("cam-thumb");
+  var hiddenInput = document.getElementById("face-data");
+  var captureBtn = document.getElementById("capture-btn");
+  var retakeBtn = document.getElementById("retake-btn");
+  var statusEl = document.getElementById("cam-status");
+  var errorEl = document.getElementById("cam-error");
+  var stream = null;
+
+  function showError(message) {
+    errorEl.textContent = message;
+    errorEl.hidden = false;
+  }
+
+  function setCapturedState(captured) {
+    video.hidden = captured;
+    thumb.hidden = !captured;
+    captureBtn.hidden = captured;
+    retakeBtn.hidden = !captured;
+    statusEl.textContent = captured
+      ? "Photo captured. It will be submitted with this form."
+      : "";
+  }
+
+  function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showError("This browser does not support webcam capture. Use a recent version of Chrome, Edge or Firefox.");
+      captureBtn.disabled = true;
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false
+    }).then(function (mediaStream) {
+      stream = mediaStream;
+      video.srcObject = mediaStream;
+      errorEl.hidden = true;
+      captureBtn.disabled = false;
+    }).catch(function () {
+      showError("Camera access was denied or no camera was found. Students must allow webcam access to sign in; instructors without an enrolled face can continue with password only.");
+      captureBtn.disabled = true;
+    });
+  }
+
+  captureBtn.addEventListener("click", function () {
+    if (!stream || video.readyState < 2) {
+      showError("The camera is not ready yet. Wait a moment and try again.");
+      return;
+    }
+    errorEl.hidden = true;
+    var ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    var dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    hiddenInput.value = dataUrl;
+    thumb.src = dataUrl;
+    setCapturedState(true);
+  });
+
+  retakeBtn.addEventListener("click", function () {
+    hiddenInput.value = "";
+    thumb.removeAttribute("src");
+    setCapturedState(false);
+    if (!stream) {
+      startCamera();
+    }
+  });
+
+  if (hiddenInput.value && hiddenInput.value.indexOf("data:image") === 0) {
+    thumb.src = hiddenInput.value;
+    setCapturedState(true);
+  }
+  startCamera();
+})();
+</script>
+{% endblock %}

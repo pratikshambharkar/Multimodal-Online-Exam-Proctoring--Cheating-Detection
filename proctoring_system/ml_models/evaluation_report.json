@@ -1,0 +1,133 @@
+{
+  "generated_at": "2026-09-12T12:04:32.819850+00:00",
+  "cnn_test": {
+    "available": true,
+    "split_mode": "pooled",
+    "split_note": "pooled stratified re-split; near-duplicate video frames make these numbers optimistic vs the cross-session folder protocol",
+    "n_test": 363,
+    "accuracy": 0.721763085399449,
+    "classification_report": {
+      "cheating": {
+        "precision": 0.6838709677419355,
+        "recall": 0.6708860759493671,
+        "f1-score": 0.6773162939297125,
+        "support": 158.0
+      },
+      "normal": {
+        "precision": 0.75,
+        "recall": 0.7609756097560976,
+        "f1-score": 0.7554479418886199,
+        "support": 205.0
+      },
+      "accuracy": 0.721763085399449,
+      "macro avg": {
+        "precision": 0.7169354838709677,
+        "recall": 0.7159308428527323,
+        "f1-score": 0.7163821179091662,
+        "support": 363.0
+      },
+      "weighted avg": {
+        "precision": 0.7212165644716965,
+        "recall": 0.721763085399449,
+        "f1-score": 0.721440227350032,
+        "support": 363.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        106,
+        52
+      ],
+      [
+        49,
+        156
+      ]
+    ]
+  },
+  "svm_valid": {
+    "available": true,
+    "n_valid": 309,
+    "accuracy": 0.8122977346278317,
+    "classification_report": {
+      "cheating": {
+        "precision": 0.8473282442748091,
+        "recall": 0.7449664429530202,
+        "f1-score": 0.7928571428571428,
+        "support": 149.0
+      },
+      "normal": {
+        "precision": 0.7865168539325843,
+        "recall": 0.875,
+        "f1-score": 0.8284023668639053,
+        "support": 160.0
+      },
+      "accuracy": 0.8122977346278317,
+      "macro avg": {
+        "precision": 0.8169225491036967,
+        "recall": 0.8099832214765101,
+        "f1-score": 0.8106297548605241,
+        "support": 309.0
+      },
+      "weighted avg": {
+        "precision": 0.8158401457157284,
+        "recall": 0.8122977346278317,
+        "f1-score": 0.8112624368412269,
+        "support": 309.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        111,
+        38
+      ],
+      [
+        20,
+        140
+      ]
+    ]
+  },
+  "latency": {
+    "available": true,
+    "sample_image": "C:\\Users\\harsh\\OneDrive\\Desktop\\Pratik Shambharkar\\Weinganga Clg\\SEM III\\Multimodal Online Exam Proctoring  Cheating Detection\\DataSet\\online exam cheating detection.v15i.folder\\test\\cheating\\04_png.rf.056f16af9e37bc3e8904dcb7644af3c2.jpg",
+    "frame_shape": [
+      640,
+      640,
+      3
+    ],
+    "modules": {
+      "GazeTracker.analyze": {
+        "mean_ms": 14.26985333673656,
+        "p95_ms": 15.07158997701481,
+        "runs": 15,
+        "available": true
+      },
+      "ObjectDetector.detect": {
+        "mean_ms": 87.4318066596364,
+        "p95_ms": 92.28617998305708,
+        "runs": 15,
+        "available": true
+      },
+      "BehaviorCNN.predict": {
+        "mean_ms": 87.57494666303198,
+        "p95_ms": 89.82294996967539,
+        "runs": 15,
+        "available": true
+      },
+      "FaceVerifier.embed": {
+        "mean_ms": 1100.897099993502,
+        "p95_ms": 1155.1255700178444,
+        "runs": 15,
+        "available": true
+      }
+    },
+    "pipeline_per_frame_ms": {
+      "mean": 189.27660665940493,
+      "p95": 197.18071992974728
+    },
+    "pipeline_with_reverify_ms": {
+      "mean": 1290.173706652907,
+      "p95": 1352.3062899475917
+    }
+  },
+  "elapsed_seconds": 48.1
+}

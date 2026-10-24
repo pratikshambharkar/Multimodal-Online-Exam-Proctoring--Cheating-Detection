@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block title %}Integrity Reports — RAIM{% endblock %}
+
+{% block content %}
+<div class="report report-list-page">
+  <div class="page-header">
+    <h1>Integrity Reports</h1>
+    <p class="muted">
+      {% if is_instructor %}
+        All exam sessions with their proctoring outcomes. Open a report for the full evidence timeline.
+      {% else %}
+        Your exam sessions and their proctoring outcomes.
+      {% endif %}
+    </p>
+  </div>
+
+  {% if is_instructor %}
+  <form method="get" action="{% url 'report_list' %}" class="filter-bar card">
+    <label class="filter-field">
+      <span class="filter-label">Exam</span>
+      <select name="exam">
+        <option value="">All exams</option>
+        {% for exam in exams %}
+        <option value="{{ exam.id }}"
+                {% if selected_exam == exam.id|stringformat:"s" %}selected{% endif %}>
+          {{ exam.title }}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="filter-field">
+      <span class="filter-label">Trust level</span>
+      <select name="trust">
+        <option value="">All levels</option>
+        {% for value, label in trust_choices %}
+        <option value="{{ value }}" {% if selected_trust == value %}selected{% endif %}>
+          {{ label }}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit" class="btn btn-primary">Filter</button>
+    <a href="{% url 'report_list' %}" class="btn btn-secondary">Clear</a>
+  </form>
+  {% endif %}
+
+  {% if sessions %}
+  <div class="table-wrap card">
+    <table class="table report-table">
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>Exam</th>
+          <th>Started</th>
+          <th>Status</th>
+          <th>Score</th>
+          <th>Risk</th>
+          <th>Trust</th>
+          <th>Violations</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sessions %}
+        <tr>
+          <td>{{ s.student.get_full_name|default:s.student.username }}</td>
+          <td>{{ s.exam.title }}</td>
+          <td>{{ s.started_at|date:"d M Y, H:i" }}</td>
+          <td><span class="badge status-{{ s.status }}">{{ s.get_status_display }}</span></td>
+          <td>{{ s.score|floatformat:"-1" }} / {{ s.total_marks|floatformat:"-1" }}</td>
+          <td>{{ s.risk_score|floatformat:2 }}</td>
+          <td><span class="badge trust-{{ s.trust_level }}">{{ s.get_trust_level_display }}</span></td>
+          <td>{{ s.violation_count }}</td>
+          <td><a class="btn btn-small" href="{% url 'session_report' s.id %}">Open report</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state card">
+    <p>
+      {% if is_instructor %}
+        No exam sessions match the current filters. Sessions appear here as soon as students start an exam.
+      {% else %}
+        No exam sessions yet — your reports will appear here after you take an exam.
+      {% endif %}
+    </p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

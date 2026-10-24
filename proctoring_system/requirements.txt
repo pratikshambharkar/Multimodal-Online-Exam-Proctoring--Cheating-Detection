@@ -1,0 +1,27 @@
+# Remote Assessment Integrity Monitoring (RAIM)
+# Python 3.11 (Windows) — CPU-only stack
+
+Django>=5.0,<5.3
+
+# Computer vision
+opencv-python>=4.9
+mediapipe>=0.10.14
+deepface>=0.0.93
+tf-keras                     # Keras 2 compatibility layer required by DeepFace with TF >= 2.16
+tensorflow>=2.16,<2.21       # CPU wheels on Windows
+ultralytics>=8.2             # YOLOv8 (pulls in torch CPU)
+
+# Classical ML
+scikit-learn>=1.4
+joblib
+numpy
+pandas
+
+# Audio analysis
+librosa>=0.10
+soundfile
+
+# Imaging / reports
+pillow
+reportlab>=4.0
+matplotlib

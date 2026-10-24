@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Result — {{ session.exam.title }} — RAIM{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Exam Result</h1>
+  <p class="muted">{{ session.exam.title }} &middot; attempted {{ session.started_at|date:"d M Y, H:i" }}</p>
+</div>
+
+{% if session.status == 'terminated' %}
+<div class="alert alert-danger termination-banner">
+  <strong>Session terminated by proctoring.</strong>
+  {% if session.termination_reason %}
+  <p>Reason: {{ session.termination_reason }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="result-grid">
+  <div class="card score-panel">
+    <h2>Score</h2>
+    <div class="score-big">
+      {{ session.score|floatformat:"-2" }} <span class="score-total">/ {{ session.total_marks|floatformat:"-2" }}</span>
+    </div>
+    <p class="score-percentage">{{ session.percentage }}%</p>
+    <ul class="result-stats">
+      <li><span>Status</span><strong>{{ session.get_status_display }}</strong></li>
+      <li><span>Questions</span><strong>{{ question_count }}</strong></li>
+      <li><span>Answered</span><strong>{{ answered_count }}</strong></li>
+      <li><span>Correct</span><strong>{{ correct_count }}</strong></li>
+      {% if session.submitted_at %}
+      <li><span>Submitted</span><strong>{{ session.submitted_at|date:"d M Y, H:i" }}</strong></li>
+      {% endif %}
+    </ul>
+  </div>
+
+  <div class="card integrity-panel">
+    <h2>Integrity Outcome</h2>
+    <p>
+      Trust level:
+      {% if session.trust_level == 'high' %}
+      <span class="badge badge-high" style="background:#1d7a4c;color:#fff;padding:.25em .7em;border-radius:1em;">High integrity</span>
+      {% elif session.trust_level == 'medium' %}
+      <span class="badge badge-medium" style="background:#b7791f;color:#fff;padding:.25em .7em;border-radius:1em;">Needs review</span>
+      {% else %}
+      <span class="badge badge-low" style="background:#b13333;color:#fff;padding:.25em .7em;border-radius:1em;">Likely violation</span>
+      {% endif %}
+    </p>
+    <ul class="result-stats">
+      <li><span>Violations</span><strong>{{ session.violation_count }}</strong></li>
+      <li><span>Suspicious events</span><strong>{{ session.suspicious_count }}</strong></li>
+      <li><span>Tab switches</span><strong>{{ session.tab_switches }}</strong></li>
+      <li><span>Peak risk score</span><strong>{{ session.peak_risk|floatformat:2 }}</strong></li>
+      <li><span>Final risk score</span><strong>{{ session.risk_score|floatformat:2 }}</strong></li>
+    </ul>
+    <a class="btn btn-secondary" href="{% url 'session_report' session.id %}">View full proctoring report</a>
+  </div>
+</div>
+
+<div class="result-actions">
+  <a class="btn btn-primary" href="{% url 'exam_list' %}">Back to exams</a>
+</div>
+{% endblock %}

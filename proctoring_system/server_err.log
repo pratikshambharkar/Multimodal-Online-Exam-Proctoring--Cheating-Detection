@@ -1,0 +1,8 @@
+Watching for file changes with StatReloader
+[12/Sep/2026 17:41:47] "GET / HTTP/1.1" 200 5079
+[12/Sep/2026 17:41:47,295] - Broken pipe from ('127.0.0.1', 63533)
+[12/Sep/2026 17:42:48] "GET / HTTP/1.1" 200 5079
+[12/Sep/2026 17:42:48] "GET /static/css/style.css HTTP/1.1" 200 27923
+Not Found: /favicon.ico
+[12/Sep/2026 17:42:48] "GET /favicon.ico HTTP/1.1" 404 4103
+[12/Sep/2026 17:42:51] "GET / HTTP/1.1" 200 5079
